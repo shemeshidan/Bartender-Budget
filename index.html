@@ -891,17 +891,6 @@
 <body>
 <div id="app">
 
-  <!-- ══════════════════ LOCK ══════════════════ -->
-  <div id="lock">
-    <span class="lock-emoji">💰</span>
-    <div class="lock-title">BUDGET</div>
-    <div class="lock-sub">ניהול תקציב פאב</div>
-    <div class="lock-ornament"><span>✦</span></div>
-    <input type="password" class="lock-inp" id="lock-inp" placeholder="••••" maxlength="10"
-      onkeydown="if(event.key==='Enter')unlock()">
-    <button class="lock-btn" onclick="unlock()">כניסה 🔓</button>
-    <div class="lock-err" id="lock-err"></div>
-  </div>
 
   <!-- ══════════════════ HOME ══════════════════ -->
   <div id="home" class="screen">
@@ -1099,20 +1088,11 @@ function back() {
   if (prev) prev.classList.add('active');
 }
 
-/* ─── LOCK ───────────────────────────────────────────────────────────────── */
-function unlock() {
-  const val = document.getElementById('lock-inp').value;
-  if (val === PIN) {
-    document.getElementById('lock').style.display = 'none';
-    navStack.push('home');
-    initData();
-  } else {
-    const err = document.getElementById('lock-err');
-    err.textContent = 'סיסמה שגויה ✗';
-    document.getElementById('lock-inp').value = '';
-    setTimeout(() => { err.textContent = ''; }, 2200);
-  }
-}
+/* ─── INIT ───────────────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  navStack.push('home');
+  initData();
+});
 
 /* ─── DATA STATE ─────────────────────────────────────────────────────────── */
 let allIncome   = [];
