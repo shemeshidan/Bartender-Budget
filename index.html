@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BARTENDER — ניהול תקציב</title>
+  <meta name="theme-color" content="#0B0705">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Budget">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dark:       #0B0705;
+      --dark2:      #160F08;
+      --dark3:      #221508;
+      --parchment:  #F2E8C6;
+      --parchment2: #E6D8A8;
+      --gold:       #C8941A;
+      --gold2:      #E8B830;
+      --copper:     #A05A20;
+      --ink:        #1A0E06;
+      --text:       #EEE0BC;
+      --red:        #8B1A1A;
+      --green:      #1A6B2A;
+      --green-lit:  #2d9e40;
+      --red-lit:    #c0392b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Heebo', sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      overflow: hidden;
+      direction: rtl;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      max-width: 430px;
+      height: 100vh;
+      height: 100svh;
+      margin: 0 auto;
+      overflow: hidden;
+      background: var(--dark);
+    }
+
+    /* ─── SCREEN SYSTEM ─────────────────────────────────── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      transform: translateX(110%);
+      transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+      z-index: 2;
+      background: var(--dark);
+    }
+    .screen.active  { transform: translateX(0); }
+    .screen.exiting { transform: translateX(110%); }
+    .screen::-webkit-scrollbar { width: 0; }
+
+    #home {
+      transform: translateX(0);
+      z-index: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ─── LOCK SCREEN ───────────────────────────────────── */
+    #lock {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px;
+      background:
+        radial-gradient(ellipse at 50% 25%, rgba(200,148,26,.18) 0%, transparent 60%),
+        var(--dark);
+    }
+
+    .lock-emoji {
+      font-size: 64px;
+      line-height: 1;
+      margin-bottom: 16px;
+      animation: float 4s ease-in-out infinite;
+      display: inline-block;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-7px); }
+    }
+
+    .lock-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 44px;
+      letter-spacing: 10px;
+      color: var(--gold);
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(200,148,26,.5), 0 2px 0 rgba(0,0,0,.6);
+    }
+
+    .lock-sub {
+      font-size: 10.5px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      color: rgba(238,224,188,.4);
+      text-transform: uppercase;
+      margin-top: 6px;
+      margin-bottom: 42px;
+    }
+
+    .lock-ornament {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+      width: 100%;
+    }
+    .lock-ornament::before, .lock-ornament::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .lock-ornament span { color: var(--gold); font-size: 11px; }
+
+    .lock-inp {
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(200,148,26,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 20px;
+      color: var(--text);
+      text-align: center;
+      letter-spacing: 8px;
+      outline: none;
+      margin-bottom: 14px;
+      -webkit-appearance: none;
+      direction: ltr;
+    }
+    .lock-inp::placeholder { letter-spacing: 4px; color: rgba(238,224,188,.25); font-size: 16px; }
+    .lock-inp:focus { border-color: rgba(200,148,26,.65); }
+
+    .lock-btn {
+      width: 100%;
+      background: var(--gold);
+      color: var(--ink);
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .lock-btn:active { transform: scale(0.96); background: var(--gold2); }
+
+    .lock-err {
+      color: #e05c5c;
+      font-size: 12.5px;
+      text-align: center;
+      margin-top: 11px;
+      min-height: 18px;
+    }
+
+    /* ─── HOME SCREEN ───────────────────────────────────── */
+    .home-wrap {
+      min-height: 100%;
+      background:
+        radial-gradient(ellipse at 10% 15%, rgba(200,148,26,.16) 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 85%, rgba(160,90,32,.10) 0%, transparent 55%),
+        var(--dark);
+      padding: 18px 16px 80px;
+    }
+
+    .home-hdr {
+      text-align: center;
+      margin-bottom: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 48px;
+      letter-spacing: 10px;
+      color: var(--gold);
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(200,148,26,.45), 0 2px 0 rgba(0,0,0,.6);
+    }
+
+    .home-sub {
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      color: rgba(238,224,188,.38);
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+
+    .ornament {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0 18px;
+      position: relative;
+      z-index: 1;
+    }
+    .ornament::before, .ornament::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .ornament span { color: var(--gold); font-size: 11px; }
+
+    /* ─── TIME TABS ─────────────────────────────────────── */
+    .time-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .time-tab {
+      flex: 1;
+      background: rgba(200,148,26,.08);
+      border: 1px solid rgba(200,148,26,.2);
+      border-radius: 12px;
+      padding: 9px 0;
+      text-align: center;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(238,224,188,.5);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.22s;
+      user-select: none;
+    }
+    .time-tab.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--ink);
+    }
+    .time-tab:active { transform: scale(0.94); }
+
+    .period-label {
+      text-align: center;
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      color: rgba(238,224,188,.32);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── SUMMARY CARDS ────────────────────────────────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .summary-card {
+      background: linear-gradient(140deg, var(--dark2), rgba(200,148,26,.05));
+      border: 1px solid rgba(200,148,26,.18);
+      border-radius: 18px;
+      padding: 14px 14px 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 0 0 18px 18px;
+    }
+    .summary-card.income::after  { background: linear-gradient(90deg, #1A6B2A, var(--green-lit)); }
+    .summary-card.expense::after { background: linear-gradient(90deg, var(--red), var(--red-lit)); }
+    .summary-card.profit::after  { background: linear-gradient(90deg, var(--copper), var(--gold)); }
+    .summary-card.pct::after     { background: linear-gradient(90deg, var(--gold), var(--gold2)); }
+
+    .summary-icon {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 18px;
+      opacity: 0.3;
+    }
+
+    .summary-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      color: rgba(238,224,188,.4);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 27px;
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+    .summary-card.income  .summary-value { color: #4dbf65; }
+    .summary-card.expense .summary-value { color: #e05c5c; }
+    .summary-card.profit  .summary-value { color: var(--gold); }
+    .summary-card.pct     .summary-value { color: var(--gold2); }
+
+    /* ─── BREAKDOWN ─────────────────────────────────────── */
+    .breakdown-box {
+      background: rgba(200,148,26,.06);
+      border: 1px solid rgba(200,148,26,.17);
+      border-radius: 18px;
+      padding: 15px 14px;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .breakdown-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 2.5px;
+      color: var(--gold);
+      margin-bottom: 13px;
+    }
+
+    .bk-row { margin-bottom: 11px; }
+    .bk-row:last-child { margin-bottom: 0; }
+
+    .bk-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .bk-cat { font-size: 12px; font-weight: 700; color: var(--text); }
+    .bk-amt { font-size: 12px; font-weight: 800; color: var(--gold); }
+
+    .bk-bar-bg {
+      height: 5px;
+      background: rgba(255,255,255,.07);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bk-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--copper), var(--gold));
+      border-radius: 3px;
+      transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ─── ACTION BUTTONS ────────────────────────────────── */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .action-btn {
+      background: linear-gradient(140deg, var(--dark2), rgba(200,148,26,.07));
+      border: 1px solid rgba(200,148,26,.22);
+      border-radius: 18px;
+      padding: 18px 10px 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+      min-height: 90px;
+      justify-content: center;
+    }
+    .action-btn:active { transform: scale(0.93); background: rgba(200,148,26,.13); border-color: rgba(200,148,26,.5); }
+
+    .action-btn.income-btn { border-color: rgba(45,158,64,.35); }
+    .action-btn.income-btn:active { background: rgba(45,158,64,.1); border-color: rgba(45,158,64,.7); }
+
+    .action-icon  { font-size: 30px; line-height: 1; }
+    .action-label { font-size: 13px; font-weight: 800; color: var(--parchment); line-height: 1.2; text-align: center; }
+
+    .history-link-btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid rgba(200,148,26,.18);
+      border-radius: 14px;
+      padding: 13px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      color: rgba(238,224,188,.55);
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+    .history-link-btn:active { background: rgba(200,148,26,.08); color: var(--gold); border-color: rgba(200,148,26,.35); }
+    .history-link-btn span:last-child { color: var(--gold); font-size: 20px; line-height: 1; }
+
+    /* ─── SCREEN HEADER ─────────────────────────────────── */
+    .screen-hdr {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(11,7,5,.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(200,148,26,.2);
+      padding: 12px 14px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .back-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(200,148,26,.12);
+      border: 1px solid rgba(200,148,26,.28);
+      color: var(--gold);
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s;
+      line-height: 1;
+    }
+    .back-btn:active { transform: scale(0.88); }
+
+    .hdr-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      letter-spacing: 3px;
+      color: var(--gold);
+      flex: 1;
+    }
+
+    .hdr-icon { font-size: 24px; }
+
+    /* ─── CONTENT AREA ──────────────────────────────────── */
+    .content { padding: 18px 15px 60px; }
+
+    .sec-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 19px;
+      letter-spacing: 2.5px;
+      color: var(--gold);
+      border-bottom: 1px solid rgba(200,148,26,.3);
+      padding-bottom: 7px;
+      margin-bottom: 18px;
+      margin-top: 0;
+    }
+
+    /* ─── FORM ELEMENTS ─────────────────────────────────── */
+    .field-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--copper);
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .field-mb { margin-bottom: 16px; }
+
+    .inp {
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(200,148,26,.25);
+      border-radius: 11px;
+      padding: 11px 13px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      outline: none;
+      -webkit-appearance: none;
+      direction: rtl;
+      box-sizing: border-box;
+    }
+    .inp::placeholder { color: rgba(238,224,188,.22); }
+    .inp:focus { border-color: rgba(200,148,26,.6); }
+    .inp[type=number]  { -moz-appearance: textfield; }
+    .inp[type=number]::-webkit-outer-spin-button,
+    .inp[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .inp[type=week],
+    .inp[type=date] { color-scheme: dark; }
+    textarea.inp { resize: none; min-height: 82px; }
+
+    /* ─── CATEGORY PILLS ────────────────────────────────── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .cat-pill {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(200,148,26,.2);
+      border-radius: 12px;
+      padding: 11px 8px;
+      text-align: center;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(238,224,188,.5);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s;
+      line-height: 1.35;
+      user-select: none;
+    }
+    .cat-pill:active { transform: scale(0.94); }
+    .cat-pill.selected {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--ink);
+    }
+    .cat-pill.wide { grid-column: span 2; }
+
+    /* ─── PRIMARY BUTTON ────────────────────────────────── */
+    .primary-btn {
+      width: 100%;
+      background: var(--gold);
+      color: var(--ink);
+      border: none;
+      border-radius: 13px;
+      padding: 14px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s, background 0.15s;
+      margin-top: 8px;
+    }
+    .primary-btn:active  { transform: scale(0.96); background: var(--gold2); }
+    .primary-btn:disabled { opacity: 0.42; pointer-events: none; }
+
+    /* ─── HISTORY TABS ──────────────────────────────────── */
+    .hist-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .hist-tab {
+      flex: 1;
+      background: rgba(200,148,26,.08);
+      border: 1px solid rgba(200,148,26,.2);
+      border-radius: 10px;
+      padding: 8px 0;
+      text-align: center;
+      font-family: 'Heebo', sans-serif;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: rgba(238,224,188,.45);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .hist-tab.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--ink);
+    }
+
+    /* ─── HISTORY ITEMS ─────────────────────────────────── */
+    .hist-item {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(200,148,26,.13);
+      border-radius: 14px;
+      padding: 12px 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(11px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hist-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .hist-dot.income  { background: #4dbf65; }
+    .hist-dot.expense { background: #e05c5c; }
+
+    .hist-body { flex: 1; min-width: 0; }
+
+    .hist-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hist-meta {
+      font-size: 11px;
+      color: rgba(238,224,188,.37);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hist-amount {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 19px;
+      letter-spacing: .8px;
+      flex-shrink: 0;
+    }
+    .hist-amount.income  { color: #4dbf65; }
+    .hist-amount.expense { color: #e05c5c; }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: rgba(238,224,188,.18);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 4px;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+    .del-btn:active { color: #e05c5c; }
+
+    /* ─── EMPTY / LOADING STATES ────────────────────────── */
+    .empty-state {
+      text-align: center;
+      color: rgba(238,224,188,.28);
+      font-size: 13px;
+      padding: 38px 0;
+    }
+    .empty-icon { font-size: 34px; margin-bottom: 9px; }
+
+    .loading-state {
+      text-align: center;
+      color: rgba(238,224,188,.25);
+      font-size: 13px;
+      padding: 28px 0;
+      letter-spacing: .5px;
+    }
+
+    /* ─── TOAST ─────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: rgba(45,158,64,.92);
+      color: #fff;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13.5px;
+      font-weight: 700;
+      padding: 10px 22px;
+      border-radius: 30px;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 9999;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.err  { background: rgba(192,57,43,.92); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════ LOCK ══════════════════ -->
+  <div id="lock">
+    <span class="lock-emoji">💰</span>
+    <div class="lock-title">BUDGET</div>
+    <div class="lock-sub">ניהול תקציב פאב</div>
+    <div class="lock-ornament"><span>✦</span></div>
+    <input type="password" class="lock-inp" id="lock-inp" placeholder="••••" maxlength="10"
+      onkeydown="if(event.key==='Enter')unlock()">
+    <button class="lock-btn" onclick="unlock()">כניסה 🔓</button>
+    <div class="lock-err" id="lock-err"></div>
+  </div>
+
+  <!-- ══════════════════ HOME ══════════════════ -->
+  <div id="home" class="screen">
+    <div class="home-wrap">
+      <div class="home-hdr">
+        <div class="home-title">BUDGET</div>
+        <div class="home-sub">ניהול תקציב פאב</div>
+      </div>
+
+      <div class="ornament"><span>✦</span></div>
+
+      <div class="time-tabs">
+        <div class="time-tab active" data-p="month"   onclick="setPeriod('month')">חודש</div>
+        <div class="time-tab"        data-p="quarter" onclick="setPeriod('quarter')">רבעון</div>
+        <div class="time-tab"        data-p="year"    onclick="setPeriod('year')">שנה</div>
+      </div>
+      <div class="period-label" id="period-lbl">…</div>
+
+      <div class="summary-grid">
+        <div class="summary-card income">
+          <span class="summary-icon">📈</span>
+          <div class="summary-label">הכנסות</div>
+          <div class="summary-value" id="s-income">₪0</div>
+        </div>
+        <div class="summary-card expense">
+          <span class="summary-icon">📉</span>
+          <div class="summary-label">הוצאות</div>
+          <div class="summary-value" id="s-expense">₪0</div>
+        </div>
+        <div class="summary-card profit">
+          <span class="summary-icon">💵</span>
+          <div class="summary-label">רווח</div>
+          <div class="summary-value" id="s-profit">₪0</div>
+        </div>
+        <div class="summary-card pct">
+          <span class="summary-icon">%</span>
+          <div class="summary-label">אחוז רווח</div>
+          <div class="summary-value" id="s-pct">—</div>
+        </div>
+      </div>
+
+      <div class="breakdown-box">
+        <div class="breakdown-title">פילוח הוצאות</div>
+        <div id="breakdown-body"><div class="loading-state">טוען…</div></div>
+      </div>
+
+      <div class="action-grid">
+        <div class="action-btn income-btn" onclick="go('add-income')">
+          <span class="action-icon">💰</span>
+          <span class="action-label">+ הכנסה</span>
+        </div>
+        <div class="action-btn" onclick="go('add-expense')">
+          <span class="action-icon">🧾</span>
+          <span class="action-label">+ הוצאה</span>
+        </div>
+      </div>
+
+      <button class="history-link-btn" onclick="go('history')">
+        <span>📋 היסטוריה מלאה</span>
+        <span>›</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ ADD INCOME ══════════════════ -->
+  <div id="add-income" class="screen">
+    <div class="screen-hdr">
+      <div class="back-btn" onclick="back()">‹</div>
+      <div class="hdr-title">הכנסה</div>
+      <span class="hdr-icon">💰</span>
+    </div>
+    <div class="content">
+      <div class="sec-title">הכנסה שבועית</div>
+
+      <label class="field-lbl">שבוע</label>
+      <div class="field-mb">
+        <input type="week" class="inp" id="inc-week">
+      </div>
+
+      <label class="field-lbl">כמות כרטיסים שנמכרו</label>
+      <div class="field-mb">
+        <input type="number" class="inp" id="inc-tickets" placeholder="0" min="0" oninput="onTicketsInput(this.value)">
+      </div>
+
+      <label class="field-lbl">סכום כולל ₪ <span id="inc-amount-hint" style="color:rgba(200,148,26,.45);font-weight:400;letter-spacing:0;">(100 ₪ לכרטיסייה)</span></label>
+      <div class="field-mb">
+        <input type="number" class="inp" id="inc-amount" placeholder="0" min="0">
+      </div>
+
+      <button class="primary-btn" onclick="saveIncome()">שמור הכנסה ✓</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ ADD EXPENSE ══════════════════ -->
+  <div id="add-expense" class="screen">
+    <div class="screen-hdr">
+      <div class="back-btn" onclick="back()">‹</div>
+      <div class="hdr-title">הוצאה</div>
+      <span class="hdr-icon">🧾</span>
+    </div>
+    <div class="content">
+      <div class="sec-title">הוספת הוצאה</div>
+
+      <label class="field-lbl">קטגוריה</label>
+      <div class="cat-grid field-mb">
+        <div class="cat-pill" data-cat="כרם"       onclick="selectCat(this)">🍷 שתייה — הכרם</div>
+        <div class="cat-pill" data-cat="רשף"       onclick="selectCat(this)">🥃 שתייה — רשף</div>
+        <div class="cat-pill" data-cat="כרטיסיות"  onclick="selectCat(this)">🎫 כרטיסיות</div>
+        <div class="cat-pill" data-cat="סופר"      onclick="selectCat(this)">🛒 סופר</div>
+        <div class="cat-pill wide" data-cat="שונות" onclick="selectCat(this)">📌 שונות</div>
+      </div>
+
+      <label class="field-lbl">תאריך</label>
+      <div class="field-mb">
+        <input type="date" class="inp" id="exp-date">
+      </div>
+
+      <label class="field-lbl">סכום ₪</label>
+      <div class="field-mb">
+        <input type="number" class="inp" id="exp-amount" placeholder="0" min="0">
+      </div>
+
+      <div id="exp-note-wrap" style="display:none;">
+        <label class="field-lbl">פירוט</label>
+        <div class="field-mb">
+          <textarea class="inp" id="exp-note" placeholder="פירוט ההוצאה…" rows="3"></textarea>
+        </div>
+      </div>
+
+      <button class="primary-btn" onclick="saveExpense()">שמור הוצאה ✓</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ HISTORY ══════════════════ -->
+  <div id="history" class="screen">
+    <div class="screen-hdr">
+      <div class="back-btn" onclick="back()">‹</div>
+      <div class="hdr-title">היסטוריה</div>
+      <span class="hdr-icon">📋</span>
+    </div>
+    <div class="content">
+      <div class="hist-tabs">
+        <div class="hist-tab active" data-ht="all"     onclick="setHistTab('all')">הכל</div>
+        <div class="hist-tab"        data-ht="income"  onclick="setHistTab('income')">הכנסות</div>
+        <div class="hist-tab"        data-ht="expense" onclick="setHistTab('expense')">הוצאות</div>
+      </div>
+      <div id="hist-list"><div class="loading-state">טוען…</div></div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyB-nUFuOifn3lEOxidWQWAQ-YP8Cgzgvjo",
+  authDomain:        "bartender-efe04.firebaseapp.com",
+  databaseURL:       "https://bartender-efe04-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "bartender-efe04",
+  storageBucket:     "bartender-efe04.firebasestorage.app",
+  messagingSenderId: "519302139819",
+  appId:             "1:519302139819:web:6492d96200228afa30ccee"
+});
+const db = firebase.database();
+firebase.auth().signInAnonymously().catch(e => console.warn('auth:', e));
+</script>
+
+<script>
+/* ─── CONSTANTS ──────────────────────────────────────────────────────────── */
+const PIN = '1234';
+
+const CATS = {
+  'כרם':       { label: 'שתייה — הכרם', icon: '🍷' },
+  'רשף':       { label: 'שתייה — רשף',  icon: '🥃' },
+  'כרטיסיות':  { label: 'כרטיסיות',      icon: '🎫' },
+  'סופר':      { label: 'סופר',          icon: '🛒' },
+  'שונות':     { label: 'שונות',         icon: '📌' },
+};
+
+const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני',
+                   'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+/* ─── NAVIGATION ─────────────────────────────────────────────────────────── */
+const navStack = [];
+
+function go(id) {
+  const cur = document.querySelector('.screen.active');
+  if (cur) {
+    cur.classList.remove('active');
+    cur.classList.add('exiting');
+    setTimeout(() => cur.classList.remove('exiting'), 460);
+  }
+  const next = document.getElementById(id);
+  if (next) next.classList.add('active');
+  navStack.push(id);
+  if (id === 'history') renderHistory();
+}
+
+function back() {
+  navStack.pop();
+  const cur = document.querySelector('.screen.active');
+  if (cur) {
+    cur.classList.remove('active');
+    cur.classList.add('exiting');
+    setTimeout(() => cur.classList.remove('exiting'), 460);
+  }
+  const prevId = navStack.length ? navStack[navStack.length - 1] : 'home';
+  const prev = document.getElementById(prevId);
+  if (prev) prev.classList.add('active');
+}
+
+/* ─── LOCK ───────────────────────────────────────────────────────────────── */
+function unlock() {
+  const val = document.getElementById('lock-inp').value;
+  if (val === PIN) {
+    document.getElementById('lock').style.display = 'none';
+    navStack.push('home');
+    initData();
+  } else {
+    const err = document.getElementById('lock-err');
+    err.textContent = 'סיסמה שגויה ✗';
+    document.getElementById('lock-inp').value = '';
+    setTimeout(() => { err.textContent = ''; }, 2200);
+  }
+}
+
+/* ─── DATA STATE ─────────────────────────────────────────────────────────── */
+let allIncome   = [];
+let allExpenses = [];
+let curPeriod   = 'month';
+let curHistTab  = 'all';
+let selCat      = null;
+
+function initData() {
+  setDefaultDates();
+
+  db.ref('/budget/income').on('value', snap => {
+    allIncome = [];
+    snap.forEach(ch => allIncome.push({ id: ch.key, ...ch.val() }));
+    allIncome.sort((a, b) => b.ts - a.ts);
+    renderDashboard();
+    if (document.getElementById('history').classList.contains('active')) renderHistory();
+  });
+
+  db.ref('/budget/expenses').on('value', snap => {
+    allExpenses = [];
+    snap.forEach(ch => allExpenses.push({ id: ch.key, ...ch.val() }));
+    allExpenses.sort((a, b) => b.ts - a.ts);
+    renderDashboard();
+    if (document.getElementById('history').classList.contains('active')) renderHistory();
+  });
+}
+
+function setDefaultDates() {
+  const today = new Date();
+  document.getElementById('inc-week').value  = isoWeek(today);
+  document.getElementById('exp-date').value  = today.toISOString().split('T')[0];
+}
+
+function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const y = d.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(y, 0, 1));
+  const w = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${y}-W${String(w).padStart(2, '0')}`;
+}
+
+/* ─── PERIOD ─────────────────────────────────────────────────────────────── */
+function setPeriod(p) {
+  curPeriod = p;
+  document.querySelectorAll('.time-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.p === p));
+  renderDashboard();
+}
+
+function getPeriodRange(p) {
+  const now = new Date();
+  let start;
+  if (p === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (p === 'quarter') {
+    const q = Math.floor(now.getMonth() / 3);
+    start = new Date(now.getFullYear(), q * 3, 1);
+  } else {
+    start = new Date(now.getFullYear(), 0, 1);
+  }
+  return { start: start.getTime(), end: now.getTime() };
+}
+
+function getPeriodLabel(p) {
+  const now = new Date();
+  if (p === 'month')   return `${HE_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  if (p === 'quarter') return `רבעון ${Math.floor(now.getMonth()/3)+1} — ${now.getFullYear()}`;
+  return `שנת ${now.getFullYear()}`;
+}
+
+/* ─── DASHBOARD ──────────────────────────────────────────────────────────── */
+function renderDashboard() {
+  const { start, end } = getPeriodRange(curPeriod);
+  document.getElementById('period-lbl').textContent = getPeriodLabel(curPeriod);
+
+  const inc = allIncome.filter(e => e.ts >= start && e.ts <= end);
+  const exp = allExpenses.filter(e => e.ts >= start && e.ts <= end);
+
+  const totalInc = inc.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalExp = exp.reduce((s, e) => s + (e.amount || 0), 0);
+  const profit   = totalInc - totalExp;
+  const pct      = totalInc > 0 ? Math.round((profit / totalInc) * 100) : null;
+
+  document.getElementById('s-income').textContent  = '₪' + fmt(totalInc);
+  document.getElementById('s-expense').textContent = '₪' + fmt(totalExp);
+  document.getElementById('s-profit').textContent  = (profit < 0 ? '-₪' : '₪') + fmt(Math.abs(profit));
+  document.getElementById('s-pct').textContent     = pct !== null ? pct + '%' : '—';
+
+  // Breakdown
+  const catTotals = {};
+  Object.keys(CATS).forEach(k => { catTotals[k] = 0; });
+  exp.forEach(e => { if (catTotals[e.category] !== undefined) catTotals[e.category] += (e.amount || 0); });
+
+  const bd = document.getElementById('breakdown-body');
+  const entries = Object.entries(catTotals).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+  if (!entries.length) {
+    bd.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div>אין הוצאות בתקופה</div>';
+    return;
+  }
+
+  const maxVal = entries[0][1] || 1;
+  bd.innerHTML = entries.map(([cat, val]) => `
+    <div class="bk-row">
+      <div class="bk-top">
+        <span class="bk-cat">${CATS[cat].icon} ${CATS[cat].label}</span>
+        <span class="bk-amt">₪${fmt(val)}</span>
+      </div>
+      <div class="bk-bar-bg">
+        <div class="bk-bar" style="width:${Math.round((val/maxVal)*100)}%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString('he-IL');
+}
+
+/* ─── SAVE INCOME ────────────────────────────────────────────────────────── */
+const TICKET_PRICE = 100;
+
+function onTicketsInput(val) {
+  const n = parseInt(val) || 0;
+  if (n > 0) document.getElementById('inc-amount').value = n * TICKET_PRICE;
+  else document.getElementById('inc-amount').value = '';
+}
+
+function saveIncome() {
+  const weekVal = document.getElementById('inc-week').value;
+  const tickets = parseInt(document.getElementById('inc-tickets').value) || 0;
+  const amount  = parseFloat(document.getElementById('inc-amount').value) || 0;
+
+  if (!weekVal) { showToast('נא לבחור שבוע', true); return; }
+  if (amount <= 0) { showToast('נא להזין סכום', true); return; }
+
+  const [year, weekPart] = weekVal.split('-W');
+  const weekLabel = `שבוע ${weekPart} — ${year}`;
+
+  db.ref('/budget/income').push({ weekLabel, weekValue: weekVal, tickets, amount, ts: Date.now() })
+    .then(() => {
+      showToast('הכנסה נשמרה ✓');
+      document.getElementById('inc-tickets').value = '';
+      document.getElementById('inc-amount').value  = '';
+      back();
+    })
+    .catch(() => showToast('שגיאה בשמירה', true));
+}
+
+/* ─── SAVE EXPENSE ───────────────────────────────────────────────────────── */
+function selectCat(el) {
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selCat = el.dataset.cat;
+  document.getElementById('exp-note-wrap').style.display = selCat === 'שונות' ? 'block' : 'none';
+}
+
+function saveExpense() {
+  const date   = document.getElementById('exp-date').value;
+  const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+  const note   = document.getElementById('exp-note').value.trim();
+
+  if (!selCat)    { showToast('נא לבחור קטגוריה', true); return; }
+  if (!date)      { showToast('נא לבחור תאריך', true);   return; }
+  if (amount <= 0){ showToast('נא להזין סכום', true);    return; }
+
+  db.ref('/budget/expenses').push({ category: selCat, date, amount, note, ts: Date.now() })
+    .then(() => {
+      showToast('הוצאה נשמרה ✓');
+      document.getElementById('exp-amount').value = '';
+      document.getElementById('exp-note').value   = '';
+      document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('selected'));
+      selCat = null;
+      document.getElementById('exp-note-wrap').style.display = 'none';
+      back();
+    })
+    .catch(() => showToast('שגיאה בשמירה', true));
+}
+
+/* ─── HISTORY ────────────────────────────────────────────────────────────── */
+function setHistTab(tab) {
+  curHistTab = tab;
+  document.querySelectorAll('.hist-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.ht === tab));
+  renderHistory();
+}
+
+function renderHistory() {
+  let items = [];
+  if (curHistTab !== 'expense') allIncome.forEach(e => items.push({ type: 'income',  ...e }));
+  if (curHistTab !== 'income')  allExpenses.forEach(e => items.push({ type: 'expense', ...e }));
+  items.sort((a, b) => b.ts - a.ts);
+
+  const list = document.getElementById('hist-list');
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>אין רשומות</div>';
+    return;
+  }
+
+  list.innerHTML = items.map((item, i) => {
+    const d       = new Date(item.ts);
+    const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const delay   = `animation-delay:${i * 0.04}s`;
+
+    if (item.type === 'income') {
+      return `<div class="hist-item" style="${delay}">
+        <div class="hist-dot income"></div>
+        <div class="hist-body">
+          <div class="hist-title">📈 ${item.weekLabel || 'הכנסה'}</div>
+          <div class="hist-meta">${item.tickets ? item.tickets + ' כרטיסים · ' : ''}${dateStr}</div>
+        </div>
+        <div class="hist-amount income">₪${fmt(item.amount || 0)}</div>
+        <button class="del-btn" onclick="delEntry('income','${item.id}')">🗑</button>
+      </div>`;
+    } else {
+      const cat = CATS[item.category] || { label: item.category, icon: '•' };
+      return `<div class="hist-item" style="${delay}">
+        <div class="hist-dot expense"></div>
+        <div class="hist-body">
+          <div class="hist-title">${cat.icon} ${cat.label}</div>
+          <div class="hist-meta">${item.date || dateStr}${item.note ? ' · ' + item.note : ''}</div>
+        </div>
+        <div class="hist-amount expense">₪${fmt(item.amount || 0)}</div>
+        <button class="del-btn" onclick="delEntry('expense','${item.id}')">🗑</button>
+      </div>`;
+    }
+  }).join('');
+}
+
+function delEntry(type, id) {
+  if (!confirm('למחוק רשומה זו?')) return;
+  const path = type === 'income' ? 'income' : 'expenses';
+  db.ref(`/budget/${path}/${id}`).remove()
+    .then(() => showToast('נמחק'))
+    .catch(() => showToast('שגיאה', true));
+}
+
+/* ─── TOAST ──────────────────────────────────────────────────────────────── */
+let toastTimer = null;
+function showToast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = isErr ? 'err' : '';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+</script>
+</body>
+</html>
