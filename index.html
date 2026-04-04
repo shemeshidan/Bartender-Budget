@@ -1103,7 +1103,6 @@ let curHistTab  = 'all';
 let expRowIds   = [];
 
 function initData() {
-  setDefaultDates();
 
   db.ref('/budget/income').on('value', snap => {
     allIncome = [];
@@ -1122,11 +1121,6 @@ function initData() {
   });
 }
 
-function setDefaultDates() {
-  const today = new Date();
-  document.getElementById('inc-week').value  = isoWeek(today);
-  document.getElementById('exp-date').value  = today.toISOString().split('T')[0];
-}
 
 function isoWeek(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
