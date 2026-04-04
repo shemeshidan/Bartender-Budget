@@ -1278,6 +1278,15 @@ function updateIncTotal() {
   document.getElementById('inc-total').textContent = '₪' + fmt(total);
 }
 
+async function ensureAuth() {
+  const user = firebase.auth().currentUser;
+  if (user) return;
+  await firebase.auth().signInAnonymously();
+  await new Promise(resolve => {
+    const unsub = firebase.auth().onAuthStateChanged(u => { if (u) { unsub(); resolve(); } });
+  });
+}
+
 async function saveMonthIncome() {
   const rows = document.querySelectorAll('.week-inp');
   const entries = [];
@@ -1295,11 +1304,11 @@ async function saveMonthIncome() {
   });
   if (!entries.length) { showToast('לא הוזנו כרטיסיות', true); return; }
   try {
+    await ensureAuth();
     for (const e of entries) await db.ref('/budget/income').push(e);
     showToast(`נשמרו ${entries.length} שבועות ✓`);
-    renderIncomeMonth();
     back();
-  } catch { showToast('שגיאה בשמירה', true); }
+  } catch(e) { showToast('שגיאה: ' + e.message, true); }
 }
 
 /* ─── EXPENSES — MONTHLY ─────────────────────────────────────────────────── */
@@ -1403,12 +1412,13 @@ async function saveMonthExpenses() {
   }
   if (!entries.length) { showToast('לא הוזנו הוצאות', true); return; }
   try {
+    await ensureAuth();
     for (const e of entries) await db.ref('/budget/expenses').push(e);
     showToast(`נשמרו ${entries.length} הוצאות ✓`);
     document.getElementById('exp-rows-wrap').innerHTML = '';
     expRowIds = [];
     back();
-  } catch { showToast('שגיאה בשמירה', true); }
+  } catch(e) { showToast('שגיאה: ' + e.message, true); }
 }
 
 /* ─── HISTORY ────────────────────────────────────────────────────────────── */
