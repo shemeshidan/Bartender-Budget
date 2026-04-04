@@ -1301,6 +1301,7 @@ async function saveMonthIncome() {
     await ensureAuth();
     for (const e of entries) await db.ref('/budget/income').push(e);
     showToast(`✓ ${HE_MONTHS[incMonth.getMonth()]} — ${entries.length} שבועות נשמרו`);
+    curMonths = 12;
     back();
   } catch(e) { showToast('שגיאה: ' + e.message, true); }
 }
