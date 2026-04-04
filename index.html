@@ -1296,7 +1296,6 @@ async function saveMonthIncome() {
 /* ─── EXPENSES — MONTHLY ─────────────────────────────────────────────────── */
 let expMonth = new Date();
 expMonth = new Date(expMonth.getFullYear(), expMonth.getMonth(), 1);
-let expRowIds = [];
 
 function expChangeMonth(delta) {
   expMonth = new Date(expMonth.getFullYear(), expMonth.getMonth() + delta, 1);
