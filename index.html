@@ -743,9 +743,10 @@
       <div class="ornament"><span>✦</span></div>
 
       <div class="time-tabs">
-        <div class="time-tab active" data-p="month"   onclick="setPeriod('month')">חודש</div>
+        <div class="time-tab"        data-p="month"   onclick="setPeriod('month')">חודש</div>
         <div class="time-tab"        data-p="quarter" onclick="setPeriod('quarter')">רבעון</div>
         <div class="time-tab"        data-p="year"    onclick="setPeriod('year')">שנה</div>
+        <div class="time-tab active" data-p="all"     onclick="setPeriod('all')">הכל</div>
       </div>
       <div class="period-label" id="period-lbl">…</div>
 
@@ -966,7 +967,7 @@ function unlock() {
 /* ─── DATA STATE ─────────────────────────────────────────────────────────── */
 let allIncome   = [];
 let allExpenses = [];
-let curPeriod   = 'month';
+let curPeriod   = 'all';
 let curHistTab  = 'all';
 let selCat      = null;
 
@@ -1016,6 +1017,7 @@ function setPeriod(p) {
 
 function getPeriodRange(p) {
   const now = new Date();
+  if (p === 'all') return { start: 0, end: now.getTime() };
   let start;
   if (p === 'month') {
     start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1030,6 +1032,7 @@ function getPeriodRange(p) {
 
 function getPeriodLabel(p) {
   const now = new Date();
+  if (p === 'all')     return 'כל הזמנים';
   if (p === 'month')   return `${HE_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
   if (p === 'quarter') return `רבעון ${Math.floor(now.getMonth()/3)+1} — ${now.getFullYear()}`;
   return `שנת ${now.getFullYear()}`;
