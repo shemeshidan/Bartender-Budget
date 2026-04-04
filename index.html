@@ -1141,7 +1141,7 @@ function isoWeek(date) {
 /* ─── MONTHS PICKER ──────────────────────────────────────────────────────── */
 function addMonths(delta) {
   const next = curMonths + delta;
-  if (next < 1 || next > totalMonths) return;
+  if (next < 1) return;
   curMonths = next;
   renderDashboard();
 }
@@ -1236,10 +1236,9 @@ function incChangeMonth(delta) {
 }
 
 function renderIncomeMonth() {
-  document.getElementById('inc-month-lbl').textContent =
-    `${HE_MONTHS[incMonth.getMonth()]} ${incMonth.getFullYear()}`;
   const y = incMonth.getFullYear();
   const m = incMonth.getMonth();
+  document.getElementById('inc-month-lbl').textContent = `${HE_MONTHS[m]} ${y}`;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const weeks = [];
   for (let day = 1; day <= daysInMonth; day += 7) {
@@ -1255,6 +1254,16 @@ function renderIncomeMonth() {
       </div>
     </div>
   `).join('');
+
+  // טעינת נתונים קיימים מ-Firebase
+  allIncome.forEach(entry => {
+    const d = new Date(entry.ts);
+    if (d.getFullYear() !== y || d.getMonth() !== m) return;
+    const weekNum = Math.ceil(d.getDate() / 7);
+    const inp = document.querySelector(`.week-inp[data-week="${weekNum}"]`);
+    if (inp && !inp.value) inp.value = entry.tickets;
+  });
+
   updateIncTotal();
 }
 
@@ -1303,8 +1312,46 @@ function expChangeMonth(delta) {
 }
 
 function renderExpMonth() {
-  document.getElementById('exp-month-lbl').textContent =
-    `${HE_MONTHS[expMonth.getMonth()]} ${expMonth.getFullYear()}`;
+  const y = expMonth.getFullYear();
+  const m = expMonth.getMonth();
+  document.getElementById('exp-month-lbl').textContent = `${HE_MONTHS[m]} ${y}`;
+
+  // מציג הוצאות קיימות לחודש זה
+  const existing = allExpenses.filter(e => {
+    const d = new Date(e.ts);
+    return d.getFullYear() === y && d.getMonth() === m;
+  });
+
+  const wrap = document.getElementById('exp-rows-wrap');
+  wrap.innerHTML = '';
+  expRowIds = [];
+
+  if (existing.length) {
+    existing.forEach(e => {
+      const id = Date.now() + Math.random();
+      expRowIds.push(id);
+      const div = document.createElement('div');
+      div.id = 'exp-row-' + id;
+      div.innerHTML = `
+        <div class="exp-row">
+          <input type="number" class="inp exp-amount-inp" id="exp-amt-${id}" value="${e.amount}" min="0">
+          <select class="exp-cat-sel" id="exp-cat-${id}" onchange="onExpCat(${id})">
+            <option value="">קטגוריה</option>
+            <option value="כרם" ${e.category==='כרם'?'selected':''}>🍷 הכרם</option>
+            <option value="רשף" ${e.category==='רשף'?'selected':''}>🥃 רשף</option>
+            <option value="כרטיסיות" ${e.category==='כרטיסיות'?'selected':''}>🎫 כרטיסיות</option>
+            <option value="סופר" ${e.category==='סופר'?'selected':''}>🛒 סופר</option>
+            <option value="שונות" ${e.category==='שונות'?'selected':''}>📌 שונות</option>
+          </select>
+          <button class="del-row-btn" onclick="removeExpRow(${id})">🗑</button>
+        </div>
+        <input type="text" class="inp exp-note-inp" id="exp-note-${id}"
+          value="${e.note||''}" placeholder="פירוט…"
+          style="display:${e.category==='שונות'?'block':'none'};margin-bottom:8px;">
+      `;
+      wrap.appendChild(div);
+    });
+  }
 }
 
 function addExpRow() {
