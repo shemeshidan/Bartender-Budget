@@ -1296,11 +1296,11 @@ async function saveMonthIncome() {
       tickets, amount: tickets * TICKET_PRICE, ts
     });
   });
-  if (!entries.length) { showToast('לא הוזנו כרטיסיות', true); return; }
+  if (!entries.length) { showToast(`לא הוזנו כרטיסיות עבור ${HE_MONTHS[incMonth.getMonth()]}`, true); return; }
   try {
     await ensureAuth();
     for (const e of entries) await db.ref('/budget/income').push(e);
-    showToast(`נשמרו ${entries.length} שבועות ✓`);
+    showToast(`✓ ${HE_MONTHS[incMonth.getMonth()]} — ${entries.length} שבועות נשמרו`);
     back();
   } catch(e) { showToast('שגיאה: ' + e.message, true); }
 }
