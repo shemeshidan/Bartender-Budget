@@ -1299,6 +1299,13 @@ async function saveMonthIncome() {
   if (!entries.length) { showToast(`לא הוזנו כרטיסיות עבור ${HE_MONTHS[incMonth.getMonth()]}`, true); return; }
   try {
     await ensureAuth();
+    // מחק נתונים קיימים לחודש זה לפני שמירה מחדש
+    const y = incMonth.getFullYear(), m = incMonth.getMonth();
+    for (const e of allIncome) {
+      const d = new Date(e.ts);
+      if (d.getFullYear() === y && d.getMonth() === m)
+        await db.ref('/budget/income/' + e.id).remove();
+    }
     for (const e of entries) await db.ref('/budget/income').push(e);
     showToast(`✓ ${HE_MONTHS[incMonth.getMonth()]} — ${entries.length} שבועות נשמרו`);
     curMonths = 12;
@@ -1397,17 +1404,28 @@ async function saveMonthExpenses() {
   const entries = [];
   const monthDate = `${expMonth.getFullYear()}-${String(expMonth.getMonth()+1).padStart(2,'0')}-15`;
   const ts = new Date(expMonth.getFullYear(), expMonth.getMonth(), 15, 12).getTime();
+  let idx = 0;
   for (const id of expRowIds) {
     const amount = parseFloat(document.getElementById('exp-amt-' + id)?.value) || 0;
     const category = document.getElementById('exp-cat-' + id)?.value;
     const note = document.getElementById('exp-note-' + id)?.value.trim() || '';
+    // שורה ריקה לחלוטין — דלג
+    if (!amount && !category) continue;
+    // יש סכום אבל אין קטגוריה
     if (!category) { showToast('נא לבחור קטגוריה בכל שורה', true); return; }
     if (amount <= 0) continue;
-    entries.push({ category, date: monthDate, amount, note, ts: ts + expRowIds.indexOf(id) });
+    entries.push({ category, date: monthDate, amount, note, ts: ts + idx++ });
   }
   if (!entries.length) { showToast('לא הוזנו הוצאות', true); return; }
   try {
     await ensureAuth();
+    // מחק נתונים קיימים לחודש זה לפני שמירה מחדש
+    const y = expMonth.getFullYear(), m = expMonth.getMonth();
+    for (const e of allExpenses) {
+      const d = new Date(e.ts);
+      if (d.getFullYear() === y && d.getMonth() === m)
+        await db.ref('/budget/expenses/' + e.id).remove();
+    }
     for (const e of entries) await db.ref('/budget/expenses').push(e);
     showToast(`נשמרו ${entries.length} הוצאות ✓`);
     document.getElementById('exp-rows-wrap').innerHTML = '';
