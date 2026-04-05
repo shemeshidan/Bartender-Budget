@@ -1039,7 +1039,6 @@ firebase.initializeApp({
   appId:             "1:519302139819:web:6492d96200228afa30ccee"
 });
 const db = firebase.database();
-firebase.auth().signInAnonymously().catch(e => console.warn('auth:', e));
 </script>
 
 <script>
@@ -1070,7 +1069,7 @@ function go(id) {
   const next = document.getElementById(id);
   if (next) next.classList.add('active');
   navStack.push(id);
-  if (id === 'history')    renderHistory();
+  if (id === 'history')    { loadData().then(() => renderHistory()); }
   if (id === 'add-income') renderIncomeMonth();
   if (id === 'add-expense') { renderExpMonth(); if (!expRowIds.length) addExpRow(); }
 }
@@ -1091,7 +1090,9 @@ function back() {
 /* ─── INIT ───────────────────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', () => {
   navStack.push('home');
-  initData();
+  firebase.auth().signInAnonymously()
+    .then(() => initData())
+    .catch(e => console.warn('auth:', e));
 });
 
 /* ─── DATA STATE ─────────────────────────────────────────────────────────── */
@@ -1103,23 +1104,39 @@ let curHistTab  = 'all';
 let expRowIds   = [];
 let isSaving    = false;
 
-function initData() {
+async function initData() {
+  await loadData();
+}
 
-  db.ref('/budget/income').on('value', snap => {
-    allIncome = [];
-    snap.forEach(ch => allIncome.push({ id: ch.key, ...ch.val() }));
-    allIncome.sort((a, b) => b.ts - a.ts);
-    renderDashboard();
-    if (document.getElementById('history').classList.contains('active')) renderHistory();
+async function loadData() {
+  // מחכה לחיבור אמיתי לשרת Firebase
+  await new Promise(resolve => {
+    const ref = db.ref('.info/connected');
+    ref.on('value', snap => {
+      if (snap.val() === true) { ref.off('value'); resolve(); }
+    });
   });
+  const [incSnap, expSnap] = await Promise.all([
+    db.ref('/budget/income').once('value'),
+    db.ref('/budget/expenses').once('value'),
+  ]);
+  console.log('snap children — income:', incSnap.numChildren(), 'expenses:', expSnap.numChildren());
+  allIncome = [];
+  incSnap.forEach(ch => {
+    const v = ch.val();
+    if (v && typeof v === 'object') allIncome.push({ id: ch.key, ...v });
+  });
+  allIncome.sort((a, b) => b.ts - a.ts);
 
-  db.ref('/budget/expenses').on('value', snap => {
-    allExpenses = [];
-    snap.forEach(ch => allExpenses.push({ id: ch.key, ...ch.val() }));
-    allExpenses.sort((a, b) => b.ts - a.ts);
-    renderDashboard();
-    if (document.getElementById('history').classList.contains('active')) renderHistory();
+  allExpenses = [];
+  expSnap.forEach(ch => {
+    const v = ch.val();
+    if (v && typeof v === 'object') allExpenses.push({ id: ch.key, ...v });
   });
+  allExpenses.sort((a, b) => b.ts - a.ts);
+
+  console.log('loaded income:', allIncome.length, 'expenses:', allExpenses.length);
+  renderDashboard();
 }
 
 
@@ -1312,6 +1329,7 @@ async function saveMonthIncome() {
     await db.ref().update(updates);
     showToast(`✓ ${HE_MONTHS[incMonth.getMonth()]} — ${entries.length} שבועות נשמרו`);
     curMonths = 12;
+    await loadData();
     back();
   } catch(e) {
     console.error('save income error:', e);
@@ -1436,20 +1454,24 @@ async function saveMonthExpenses() {
   const btn = document.getElementById('save-exp-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'שומר…'; }
   try {
-    await ensureAuth();
-    const updates = {};
-    for (const e of entries) {
-      const key = db.ref('/budget/expenses').push().key;
-      updates['/budget/expenses/' + key] = e;
+    console.log('step1: ensureAuth');
+    const user = firebase.auth().currentUser;
+    if (!user) await firebase.auth().signInAnonymously();
+    console.log('step2: auth ok, pushing', entries.length, 'entries');
+    for (let i = 0; i < entries.length; i++) {
+      console.log('pushing entry', i, entries[i]);
+      const ref = await db.ref('/budget/expenses').push(entries[i]);
+      console.log('pushed entry', i, 'key:', ref.key);
     }
-    await db.ref().update(updates);
+    console.log('step3: all done');
     showToast(`נשמרו ${entries.length} הוצאות ✓`);
     curMonths = 12;
     document.getElementById('exp-rows-wrap').innerHTML = '';
     expRowIds = [];
+    await loadData();
     back();
   } catch(e) {
-    console.error('save error:', e);
+    console.error('SAVE ERROR:', e);
     showToast('שגיאה: ' + e.message, true);
   } finally {
     isSaving = false;
