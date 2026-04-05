@@ -979,7 +979,7 @@
         <span class="inc-total-lbl">סה״כ חודש</span>
         <span class="inc-total-val" id="inc-total">₪0</span>
       </div>
-      <button class="primary-btn" onclick="saveMonthIncome()">שמור חודש ✓</button>
+      <button class="primary-btn" id="save-inc-btn" onclick="saveMonthIncome()">שמור חודש ✓</button>
     </div>
   </div>
 
@@ -998,7 +998,7 @@
       </div>
       <div id="exp-rows-wrap"></div>
       <button class="add-row-btn" onclick="addExpRow()">+ הוסף שורה</button>
-      <button class="primary-btn" onclick="saveMonthExpenses()">שמור הוצאות ✓</button>
+      <button class="primary-btn" id="save-exp-btn" onclick="saveMonthExpenses()">שמור הוצאות ✓</button>
     </div>
   </div>
 
@@ -1101,6 +1101,7 @@ let curMonths   = 3;
 let totalMonths = 0;
 let curHistTab  = 'all';
 let expRowIds   = [];
+let isSaving    = false;
 
 function initData() {
 
@@ -1282,6 +1283,7 @@ async function ensureAuth() {
 }
 
 async function saveMonthIncome() {
+  if (isSaving) return;
   const rows = document.querySelectorAll('.week-inp');
   const entries = [];
   rows.forEach(inp => {
@@ -1297,20 +1299,27 @@ async function saveMonthIncome() {
     });
   });
   if (!entries.length) { showToast(`לא הוזנו כרטיסיות עבור ${HE_MONTHS[incMonth.getMonth()]}`, true); return; }
+  isSaving = true;
+  const btn = document.getElementById('save-inc-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'שומר…'; }
   try {
     await ensureAuth();
-    // מחק נתונים קיימים לחודש זה לפני שמירה מחדש
-    const y = incMonth.getFullYear(), m = incMonth.getMonth();
-    for (const e of allIncome) {
-      const d = new Date(e.ts);
-      if (d.getFullYear() === y && d.getMonth() === m)
-        await db.ref('/budget/income/' + e.id).remove();
+    const updates = {};
+    for (const e of entries) {
+      const key = db.ref('/budget/income').push().key;
+      updates['/budget/income/' + key] = e;
     }
-    for (const e of entries) await db.ref('/budget/income').push(e);
+    await db.ref().update(updates);
     showToast(`✓ ${HE_MONTHS[incMonth.getMonth()]} — ${entries.length} שבועות נשמרו`);
     curMonths = 12;
     back();
-  } catch(e) { showToast('שגיאה: ' + e.message, true); }
+  } catch(e) {
+    console.error('save income error:', e);
+    showToast('שגיאה: ' + e.message, true);
+  } finally {
+    isSaving = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור חודש ✓'; }
+  }
 }
 
 /* ─── EXPENSES — MONTHLY ─────────────────────────────────────────────────── */
@@ -1401,37 +1410,51 @@ function removeExpRow(id) {
 }
 
 async function saveMonthExpenses() {
+  if (isSaving) return;
+  console.log('saveMonthExpenses called, expRowIds:', expRowIds);
   const entries = [];
   const monthDate = `${expMonth.getFullYear()}-${String(expMonth.getMonth()+1).padStart(2,'0')}-15`;
   const ts = new Date(expMonth.getFullYear(), expMonth.getMonth(), 15, 12).getTime();
   let idx = 0;
   for (const id of expRowIds) {
-    const amount = parseFloat(document.getElementById('exp-amt-' + id)?.value) || 0;
-    const category = document.getElementById('exp-cat-' + id)?.value;
-    const note = document.getElementById('exp-note-' + id)?.value.trim() || '';
-    // שורה ריקה לחלוטין — דלג
+    const amtEl = document.getElementById('exp-amt-' + id);
+    const catEl = document.getElementById('exp-cat-' + id);
+    const noteEl = document.getElementById('exp-note-' + id);
+    console.log('row', id, 'amtEl:', amtEl, 'catEl:', catEl);
+    if (!amtEl || !catEl) { console.warn('missing element for id', id); continue; }
+    const amount = parseFloat(amtEl.value) || 0;
+    const category = catEl.value;
+    const note = noteEl ? noteEl.value.trim() : '';
+    console.log('row', id, '→ amount:', amount, 'category:', category);
     if (!amount && !category) continue;
-    // יש סכום אבל אין קטגוריה
     if (!category) { showToast('נא לבחור קטגוריה בכל שורה', true); return; }
     if (amount <= 0) continue;
     entries.push({ category, date: monthDate, amount, note, ts: ts + idx++ });
   }
   if (!entries.length) { showToast('לא הוזנו הוצאות', true); return; }
+  isSaving = true;
+  const btn = document.getElementById('save-exp-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'שומר…'; }
   try {
     await ensureAuth();
-    // מחק נתונים קיימים לחודש זה לפני שמירה מחדש
-    const y = expMonth.getFullYear(), m = expMonth.getMonth();
-    for (const e of allExpenses) {
-      const d = new Date(e.ts);
-      if (d.getFullYear() === y && d.getMonth() === m)
-        await db.ref('/budget/expenses/' + e.id).remove();
+    const updates = {};
+    for (const e of entries) {
+      const key = db.ref('/budget/expenses').push().key;
+      updates['/budget/expenses/' + key] = e;
     }
-    for (const e of entries) await db.ref('/budget/expenses').push(e);
+    await db.ref().update(updates);
     showToast(`נשמרו ${entries.length} הוצאות ✓`);
+    curMonths = 12;
     document.getElementById('exp-rows-wrap').innerHTML = '';
     expRowIds = [];
     back();
-  } catch(e) { showToast('שגיאה: ' + e.message, true); }
+  } catch(e) {
+    console.error('save error:', e);
+    showToast('שגיאה: ' + e.message, true);
+  } finally {
+    isSaving = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור הוצאות ✓'; }
+  }
 }
 
 /* ─── HISTORY ────────────────────────────────────────────────────────────── */
