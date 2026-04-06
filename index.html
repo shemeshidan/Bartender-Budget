@@ -764,7 +764,8 @@
     /* ─── HISTORY TABS ──────────────────────────────────── */
     .hist-tabs {
       display: flex;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
       margin-bottom: 16px;
     }
 
@@ -789,6 +790,35 @@
       border-color: var(--gold);
       color: var(--ink);
     }
+
+    /* ─── BY CATEGORY ───────────────────────────────────── */
+    .bycat-section { margin-bottom: 20px; }
+    .bycat-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(200,148,26,.12);
+      border: 1px solid rgba(200,148,26,.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--gold);
+    }
+    .bycat-total { font-size: 17px; font-weight: 900; }
+    .bycat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      font-size: 13px;
+      color: var(--text);
+    }
+    .bycat-row:last-child { border-bottom: none; }
+    .bycat-date { color: #888; font-size: 12px; }
+    .bycat-amt { font-weight: 700; color: var(--red-lit); }
 
     /* ─── HISTORY ITEMS ─────────────────────────────────── */
     .hist-item {
@@ -1023,9 +1053,10 @@
     </div>
     <div class="content">
       <div class="hist-tabs">
-        <div class="hist-tab active" data-ht="all"     onclick="setHistTab('all')">הכל</div>
-        <div class="hist-tab"        data-ht="income"  onclick="setHistTab('income')">הכנסות</div>
-        <div class="hist-tab"        data-ht="expense" onclick="setHistTab('expense')">הוצאות</div>
+        <div class="hist-tab active" data-ht="all"      onclick="setHistTab('all')">הכל</div>
+        <div class="hist-tab"        data-ht="income"   onclick="setHistTab('income')">הכנסות</div>
+        <div class="hist-tab"        data-ht="expense"  onclick="setHistTab('expense')">הוצאות</div>
+        <div class="hist-tab"        data-ht="bycat"    onclick="setHistTab('bycat')">לפי קטגוריה</div>
       </div>
       <div id="hist-list"><div class="loading-state">טוען…</div></div>
     </div>
@@ -1483,7 +1514,36 @@ function setHistTab(tab) {
   curHistTab = tab;
   document.querySelectorAll('.hist-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.ht === tab));
-  renderHistory();
+  if (tab === 'bycat') renderByCategory();
+  else renderHistory();
+}
+
+function renderByCategory() {
+  const list = document.getElementById('hist-list');
+  if (!allExpenses.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div>אין הוצאות</div>';
+    return;
+  }
+  list.innerHTML = Object.entries(CATS).map(([key, cat]) => {
+    const entries = allExpenses.filter(e => e.category === key).sort((a, b) => b.ts - a.ts);
+    if (!entries.length) return '';
+    const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
+    const rows = entries.map(e => {
+      const d = new Date(e.ts).toLocaleDateString('he-IL', { month: '2-digit', year: 'numeric' });
+      return `<div class="bycat-row">
+        <span class="bycat-date">${d}</span>
+        ${e.note ? `<span style="color:#aaa;font-size:12px">${e.note}</span>` : '<span></span>'}
+        <span class="bycat-amt">₪${fmt(e.amount)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="bycat-section">
+      <div class="bycat-hdr">
+        <span>${cat.icon} ${cat.label}</span>
+        <span class="bycat-total">₪${fmt(total)}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
 }
 
 function renderHistory() {
