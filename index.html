@@ -1423,7 +1423,7 @@ function renderExpMonth() {
       <div class="cat-fixed-row">
         <div class="cat-fixed-label">${cat.icon} ${cat.label}</div>
         <input type="number" class="inp cat-amt-inp" id="cat-amt-${key}"
-          placeholder="₪" min="0" value="${val}">
+          placeholder="₪" value="${val}">
         ${key === 'שונות' ? `<input type="text" class="inp cat-note-inp" id="cat-note-${key}" placeholder="פירוט…" value="${note}">` : ''}
       </div>
     `;
@@ -1475,7 +1475,7 @@ async function saveMonthExpenses() {
     const amtEl = document.getElementById('cat-amt-' + key);
     if (!amtEl) continue;
     const amount = parseFloat(amtEl.value) || 0;
-    if (amount <= 0) continue;
+    if (amount === 0) continue;
     const noteEl = document.getElementById('cat-note-' + key);
     const note = noteEl ? noteEl.value.trim() : '';
     entries.push({ category: key, date: monthDate, amount, note, ts: baseTs + idx++ });
